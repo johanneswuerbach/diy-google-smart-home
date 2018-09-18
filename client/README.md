@@ -10,7 +10,7 @@ Prepare
   * Choose "Application type" "Other"
   * Note `client id` and `client secret`
 
-Run the client with (replace the values in ${} before)
+Run the client with (replace the values in ${} before) on your Raspberry Pi
 
 ```
 docker pull johanneswuerbach/diy-google-smart-home-client && \
@@ -25,6 +25,6 @@ docker run --rm \
   -e CLIENT_ID="${CLIENT_ID}" \
   -e CLIENT_SECRET="${CLIENT_SECRET}" \
   -e CONFIG_FILE=/root/config/config.json \
-  \
+  -d \
   johanneswuerbach/diy-google-smart-home-client
 ```
