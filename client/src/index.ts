@@ -1,4 +1,4 @@
-import * as firebase from "firebase"
+import * as firebase from 'firebase'
 import * as pigpio from 'pigpio'
 import { promises as fs } from 'fs'
 import * as fetch from 'node-fetch'
@@ -22,9 +22,7 @@ const RED_PIN   = 17
 const GREEN_PIN = 22
 const BLUE_PIN  = 24 
 
-const CONFIG_FILE = process.env.CONFIG_FILE
-
-const delay = (time) => {
+const delay = (time: number) => {
   return new Promise(resolve => {
     setTimeout(() => {
       resolve()
@@ -33,6 +31,13 @@ const delay = (time) => {
 }
 
 const init = async () => {
+  if (!process.env.CONFIG_FILE) {
+    console.error('Environment variable CONFIG_FILE empty')
+    process.exit(1)
+  }
+
+  const CONFIG_FILE: string = <string> process.env.CONFIG_FILE
+
   const redPin = new pigpio.Gpio(RED_PIN, {mode: pigpio.Gpio.OUTPUT})
   const greenPin = new pigpio.Gpio(GREEN_PIN, {mode: pigpio.Gpio.OUTPUT})
   const bluePin = new pigpio.Gpio(BLUE_PIN, {mode: pigpio.Gpio.OUTPUT})
@@ -106,6 +111,13 @@ const init = async () => {
     process.exit(1)
   }
 
+  if (!firebase.auth().currentUser) {
+    console.error('No current user, not logged in?')
+    process.exit(1)
+  }
+
+  const currentUser = <firebase.User> firebase.auth().currentUser
+
   await db.collection('devices').doc('diy-rpi-light').set({
     type: 'action.devices.types.LIGHT',
     traits: [
@@ -119,7 +131,7 @@ const init = async () => {
       nicknames: []
     },
     willReportState: false,
-    uid: firebase.auth().currentUser.uid
+    uid: currentUser.uid
   }, { merge: true })
 
   const unsubscribe = db.collection('devices').doc('diy-rpi-light').onSnapshot(function(doc) {
@@ -128,7 +140,7 @@ const init = async () => {
       return
     }
    
-    const data = doc.data()
+    const data = <firebase.firestore.DocumentData> doc.data()
 
     if (data.states && data.states.on) {
       let red = 255
@@ -146,10 +158,11 @@ const init = async () => {
 
         // Split into pairs of two
         const values = hex.match(/(..?)/g)
-
-        red = parseInt(values[0], 16) 
-        green = parseInt(values[1], 16) 
-        blue = parseInt(values[2], 16)
+        if (values) {
+          red = parseInt(values[0], 16) 
+          green = parseInt(values[1], 16) 
+          blue = parseInt(values[2], 16)
+        }
       }
 
       if (data.states.brightness) {

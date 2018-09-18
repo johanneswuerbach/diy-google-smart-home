@@ -114,7 +114,11 @@
     // Multi-line object liiterals and function calls should have a trailing comma. This helps avoid merge conflicts.
     "trailing-comma": {"severity": "warning"},
 
-    "semicolon": [true, "never"]
+    "semicolon": [true, "never"],
+
+    "quotemark": [true, "single", "avoid-template"],
+
+    "indent": [true, "spaces", 2]
   },
 
   "defaultSeverity": "error"

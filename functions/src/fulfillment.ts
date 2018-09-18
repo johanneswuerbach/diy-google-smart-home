@@ -1,20 +1,25 @@
-import { smarthome } from 'actions-on-google'
+import { smarthome, SmartHomeV1Request, Headers, SmartHomeV1Response, SmartHomeV1ExecuteResponseCommands, SmartHomeV1ExecuteErrors } from 'actions-on-google'
 import { inspect } from 'util'
 
 import db from './db'
+import { firestore } from 'firebase-admin'
 
 const app = smarthome({})
 
 const authorizationHeaderRexExp = new RegExp('^Bearer (.+)$')
 
-const determineUser = async (headers) => {
-  const header = headers.authorization
+const determineUser = async (headers: Headers) => {
+  let header = headers.authorization
   if (!header) {
     return null
   }
 
+  if (header instanceof Array) {
+    header = header[0]
+  }
+
   const match = authorizationHeaderRexExp.exec(header)
-  if (match.length !== 2) {
+  if (!match || match.length !== 2) {
     return null
   }
 
@@ -28,26 +33,28 @@ const determineUser = async (headers) => {
     return null
   }
 
-  return doc.data().uid
+  return (<firestore.DocumentData> doc.data()).uid
 }
 
-const determineUserMiddleware = (fn) => {
-  return async (body, headers) => {
+interface Handler<TRequest extends SmartHomeV1Request, TResponse extends SmartHomeV1Response> {
+  (body: TRequest, headers: Headers, uid: string): TResponse | Promise<TResponse>
+}
+
+function determineUserMiddleware<TRequest extends SmartHomeV1Request, TResponse extends SmartHomeV1Response> (fn: Handler<TRequest, TResponse>) {
+  return async (body: TRequest, headers: Headers) => {
     const uid = await determineUser(headers)
-    if (!uid) {
-      return {
-        requestId: body.requestId,
-        payload: {
-          errorCode: 'authFailure'
-        }
-      }
-    }
 
     return fn(body, headers, uid)
   }
 }
 
-app.onDisconnect(determineUserMiddleware((body, headers) => {
+app.onDisconnect(determineUserMiddleware((body, headers, uid) => {
+  if (!uid) {
+    return {
+      requestId: body.requestId
+    }
+  }
+
   console.log(headers, inspect(body, { depth: Infinity }))
 
   // User unlinked their account, stop reporting state for user
@@ -55,9 +62,20 @@ app.onDisconnect(determineUserMiddleware((body, headers) => {
 }))
 
 app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
-  console.log(headers, inspect(body, { depth: Infinity }))
+  const commands : SmartHomeV1ExecuteResponseCommands[] = []
 
-  const commands = []
+  if (!uid) {
+    const errorCode : SmartHomeV1ExecuteErrors = 'authFailure'
+    return {
+      requestId: body.requestId,
+      payload: {
+        errorCode,
+        commands
+      }
+    }
+  }
+
+  console.log(headers, inspect(body, { depth: Infinity }))
 
   for (const input of body.inputs) {
     for (const command of input.payload.commands) {
@@ -65,10 +83,10 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
         // TODO: Optimize to make only a single query
         const deviceRef = db.collection('devices').doc(targetDevice.id)
         const doc = await deviceRef.get()
-        if (!doc.exists || doc.data().uid !== uid) {
+        if (!doc.exists || (<firestore.DocumentData> doc.data()).uid !== uid) {
           commands.push({
             ids: [targetDevice.id],
-            status: "ERROR",
+            status: 'ERROR',
             errorCode: 'deviceNotFound'
           })
         }
@@ -80,11 +98,11 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
             })
 
             commands.push({
-              "ids": [targetDevice.id],
-              "status": "SUCCESS",
-              "states": {
-                "on": execution.params.on,
-                "online": true
+              'ids': [targetDevice.id],
+              'status': 'SUCCESS',
+              'states': {
+                'on': execution.params.on,
+                'online': true
               }
             })
           } else if (execution.command === 'action.devices.commands.ColorAbsolute') {
@@ -93,10 +111,10 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
             })
 
             commands.push({
-              "ids": [targetDevice.id],
-              "status": "SUCCESS",
-              "states": {
-                "color": execution.params.color
+              'ids': [targetDevice.id],
+              'status': 'SUCCESS',
+              'states': {
+                'color': execution.params.color
               }
             })
           } else if (execution.command === 'action.devices.commands.BrightnessAbsolute') {
@@ -105,10 +123,10 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
             })
 
             commands.push({
-              "ids": [targetDevice.id],
-              "status": "SUCCESS",
-              "states": {
-                "brightness": execution.params.brightness
+              'ids': [targetDevice.id],
+              'status': 'SUCCESS',
+              'states': {
+                'brightness': execution.params.brightness
               }
             })
           }
@@ -125,7 +143,17 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
   }
 }))
 
-app.onQuery(determineUserMiddleware((body, headers) => {
+app.onQuery(determineUserMiddleware((body, headers, uid) => {
+  if (!uid) {
+    return {
+      requestId: body.requestId,
+      payload: {
+        errorCode: 'authFailure',
+        devices: {}
+      },
+    }
+  }
+
   console.log(headers, inspect(body, { depth: Infinity }))
 
   return {
@@ -137,9 +165,21 @@ app.onQuery(determineUserMiddleware((body, headers) => {
 }))
 
 app.onSync(determineUserMiddleware(async (body, headers, uid) => {
+  if (!uid) {
+    return {
+      requestId: body.requestId,
+      payload: {
+        errorCode: 'authFailure',
+        devices: [],
+        // TODO: This should be undefined, but fails typescript checks
+        agentUserId: 'invalid'
+      },
+    }
+  }
+
   console.log(headers, inspect(body, { depth: Infinity }))
 
-  const querySnapshot = await db.collection('devices').where("uid", "==", uid).get()
+  const querySnapshot = await db.collection('devices').where('uid', '==', uid).get()
 
   const devices = querySnapshot.docs.map(function (doc) {
     const data = doc.data()
