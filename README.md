@@ -2,6 +2,12 @@
 
 Connect and control your DIY Raspberry Pi gadgets (lights etc.) with Google Assistent / Google Home.
 
+Implementation of Smart Home Action https://developers.google.com/actions/smarthome/ using
+* Firebase Functions for fulfilment and token generation
+* Firebase Authentication for user management
+* Firebase Hosting for account linking
+* Firebase Firestore for self-service device clients
+
 Setup Smart Home project:
 * Create smart home project https://console.actions.google.com/project/
 * Configure Account linking
@@ -23,3 +29,5 @@ Deploy firebase code
 * `firebase deploy`
 
 * Go to https://console.firebase.google.com/project/diy-smart-home-52801/authentication/providers and enable "Google"
+
+Configure and run the example client controlling a LED strip [here](/client).
