@@ -1,0 +1,21 @@
+{
+  "name": "client",
+  "scripts": {
+    "lint": "tslint --project tsconfig.json",
+    "build": "tsc",
+    "start": "npm run build && node lib/index.js"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase": "^5.4.2",
+    "node-fetch": "^2.2.0",
+    "pigpio": "^1.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^10.9.4",
+    "@types/pigpio": "^0.4.2",
+    "tslint": "^5.11.0",
+    "typescript": "^3.0.3"
+  },
+  "private": true
+}

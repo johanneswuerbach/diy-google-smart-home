@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Raspberry Light</title>
+
+    <!-- update the version number as needed -->
+    <script defer src="/__/firebase/5.5.0/firebase-app.js"></script>
+    <!-- include only the Firebase features as you need -->
+    <script defer src="/__/firebase/5.5.0/firebase-auth.js"></script>
+    <script defer src="/__/firebase/5.5.0/firebase-database.js"></script>
+    <!-- initialize the SDK after all desired features are loaded -->
+    <script defer src="/__/firebase/init.js"></script>
+
+    <script src="https://cdn.firebase.com/libs/firebaseui/3.4.1/firebaseui.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.4.1/firebaseui.css" />
+  </head>
+  <body>
+    <h1>Raspberry Light</h1>
+    <div id="firebaseui-auth-container"></div>
+    <div id="loader">Loading...</div>
+    <div id="status"></div>
+    <div id="device-token"></div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // FirebaseUI config.
+        const uiConfig = {
+          callbacks: {
+            signInSuccessWithAuthResult: function() {
+              // Handled by auth state change observer
+              return false;
+            },
+            signInFailure: function(error) {
+              document.getElementById('status').textContent = `Sign in failure:\nError: ${error}`;
+            },
+            uiShown: function() {
+              document.getElementById('loader').style.display = 'none';
+            }
+          },
+          signInOptions: [
+            // Leave the lines as is for the providers you want to offer your users.
+            firebase.auth.GoogleAuthProvider.PROVIDER_ID
+          ],
+          // tosUrl and privacyPolicyUrl accept either url string or a callback
+          // function.
+          // Terms of service url/callback.
+          tosUrl: function () { alert('Use at your own risk!') },
+          // Privacy policy url/callback.
+          privacyPolicyUrl: function () { alert('Use at your own risk!') }
+        };
+
+        const auth = firebase.auth();
+
+        auth.onAuthStateChanged(async function(user) {
+          if (!user) {
+            // Initialize the FirebaseUI Widget using Firebase.
+            const ui = new firebaseui.auth.AuthUI(auth);
+            // The start method will wait until the DOM is loaded.
+            ui.start('#firebaseui-auth-container', uiConfig);
+            return;
+          }
+
+          document.getElementById('loader').style.display = 'none';
+
+          // Get the user's ID token as it is needed to exchange for a session cookie.
+          const idToken = await user.getIdToken();
+
+          try {
+            const params = new URLSearchParams(document.location.search)
+            const clientId = params.get('client_id');
+            const redirectUri = params.get('redirect_uri');
+            const state = params.get('state');
+            const responseType = params.get('response_type');
+
+            if (responseType !== 'token') {
+              return document.getElementById('status').textContent = "Invalid \"response_type\"";
+            }
+
+            if (!state) {
+              return document.getElementById('status').textContent = "\"state\" parameter missing";
+            }
+
+            const response = await fetch('/token', {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json; charset=utf-8'
+              },
+              body: JSON.stringify({
+                idToken,
+                clientId,
+                redirectUri
+              })
+            });
+
+            if (!response.ok) {
+              const body = await response.text();
+              return document.getElementById('status').textContent = `
+                Invalid backend response:\n
+                Status: ${response.status}\n
+                Body: ${body}
+              `;
+            }
+
+            const data = await response.json();
+
+            
+            if (data.tokenType !== 'bearer') {
+              return document.getElementById('status').textContent = `
+                Invalid backend response:\n
+                Invalid token type: ${data.tokenType}
+              `;
+            }
+            if (!data.accessToken) {
+              return document.getElementById('status').textContent = `
+                Invalid backend response:\n
+                No access token
+              `;
+            }
+
+            const redirectParams = new URLSearchParams({
+              'access_token': data.accessToken,
+              'token_type': data.tokenType,
+              'state': state
+            });
+
+            document.location.assign(`${redirectUri}#${redirectParams.toString()}`)
+          } catch (e) {
+            return document.getElementById('status').textContent = `
+              Error:\n
+              Name: ${e.name}\n
+              Message: ${e.message}
+            `;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

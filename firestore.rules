@@ -1,0 +1,9 @@
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /devices/{deviceId} {
+      // Only the authenticated user who created the device can read or write
+      allow read, update, delete: if request.auth.uid == resource.data.uid;
+      allow create: if request.auth.uid != null && request.resource.data.uid == request.auth.uid;
+    }
+  }
+}
