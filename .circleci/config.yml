@@ -1,13 +1,10 @@
 version: 2
 jobs:
   build:
-    docker:
-    - image: circleci/node:10-stretch 
+    machine:
+      docker_layer_caching: true
     steps:
       - checkout
-      - setup_remote_docker:
-          docker_layer_caching: true
-          version: 18.06.0-ce
       - run:
           name: Test functions
           command: make -C functions test
