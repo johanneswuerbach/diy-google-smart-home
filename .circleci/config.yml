@@ -7,10 +7,8 @@ jobs:
       - checkout
       - run:
           name: Test functions
-          command: make test
-          working_directory: $CIRCLE_WORKING_DIRECTORY/functions
+          command: make -C functions test
       - run:
           name: Test client
-          command: make build test
-          working_directory: $CIRCLE_WORKING_DIRECTORY/client
+          command: make -C client build test
 
