@@ -36,7 +36,7 @@ const init = async () => {
     process.exit(1)
   }
 
-  const CONFIG_FILE: string = process.env.CONFIG_FILE
+  const CONFIG_FILE: string = <string> process.env.CONFIG_FILE
 
   const redPin = new pigpio.Gpio(RED_PIN, {mode: pigpio.Gpio.OUTPUT})
   const greenPin = new pigpio.Gpio(GREEN_PIN, {mode: pigpio.Gpio.OUTPUT})
@@ -111,12 +111,12 @@ const init = async () => {
     process.exit(1)
   }
 
-  if (!firebase.auth().currentUser) {
+  const currentUser = firebase.auth().currentUser
+  if (!currentUser) {
     console.error('No current user, not logged in?')
     process.exit(1)
+    return
   }
-
-  const currentUser = firebase.auth().currentUser
 
   await db.collection('devices').doc('diy-rpi-light').set({
     type: 'action.devices.types.LIGHT',
@@ -141,6 +141,9 @@ const init = async () => {
     }
    
     const data = doc.data()
+    if (!data) {
+      return
+    }
 
     if (data.states && data.states.on) {
       let red = 255
