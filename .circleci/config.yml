@@ -6,6 +6,12 @@ jobs:
     steps:
       - checkout
       - run:
+          name: "Upgrade docker"
+          command: |
+            curl -fsSL https://test.docker.com -o test-docker.sh
+            sudo sh test-docker.sh
+            docker --version
+      - run:
           name: Test functions
           command: make -C functions test
       - run:
