@@ -1,0 +1,16 @@
+version: 2
+jobs:
+  build:
+    machine:
+      docker_layer_caching: true
+    steps:
+      - checkout
+      - run:
+          name: Test functions
+          command: make test
+          working_directory: $CIRCLE_WORKING_DIRECTORY/functions
+      - run:
+          name: Test client
+          command: make build test
+          working_directory: $CIRCLE_WORKING_DIRECTORY/client
+

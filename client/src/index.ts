@@ -1,7 +1,7 @@
 import * as firebase from 'firebase'
 import * as pigpio from 'pigpio'
 import { promises as fs } from 'fs'
-import * as fetch from 'node-fetch'
+import fetch from 'node-fetch'
 
 firebase.initializeApp({
   apiKey: process.env.API_KEY,
@@ -36,7 +36,7 @@ const init = async () => {
     process.exit(1)
   }
 
-  const CONFIG_FILE: string = <string> process.env.CONFIG_FILE
+  const CONFIG_FILE: string = process.env.CONFIG_FILE
 
   const redPin = new pigpio.Gpio(RED_PIN, {mode: pigpio.Gpio.OUTPUT})
   const greenPin = new pigpio.Gpio(GREEN_PIN, {mode: pigpio.Gpio.OUTPUT})
@@ -116,7 +116,7 @@ const init = async () => {
     process.exit(1)
   }
 
-  const currentUser = <firebase.User> firebase.auth().currentUser
+  const currentUser = firebase.auth().currentUser
 
   await db.collection('devices').doc('diy-rpi-light').set({
     type: 'action.devices.types.LIGHT',
@@ -140,7 +140,7 @@ const init = async () => {
       return
     }
    
-    const data = <firebase.firestore.DocumentData> doc.data()
+    const data = doc.data()
 
     if (data.states && data.states.on) {
       let red = 255
@@ -209,7 +209,3 @@ init().catch((e) => {
   console.error(e)
   process.exit(1)
 })
-
-
-
-
