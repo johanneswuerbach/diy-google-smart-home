@@ -9,6 +9,16 @@ jobs:
           name: Test functions
           command: make -C functions test
       - run:
+          name: Prepare arm support
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends qemu-user-static binfmt-support
+            sudo update-binfmts --enable qemu-arm
+            sudo update-binfmts --display qemu-arm
+            # TODO
+            # Replace with `docker run --privileged linuxkit/binfmt:v0.6`
+            # Once circle has a kernel 4.8+
+      - run:
           name: Test client
           command: make -C client build test
 
