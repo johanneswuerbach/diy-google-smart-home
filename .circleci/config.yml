@@ -3,6 +3,7 @@ jobs:
   build:
     machine:
       docker_layer_caching: true
+      image: circleci/classic:201808-01
     steps:
       - checkout
       - run:
@@ -10,14 +11,7 @@ jobs:
           command: make -C functions test
       - run:
           name: Prepare arm support
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends qemu-user-static binfmt-support
-            sudo update-binfmts --enable qemu-arm
-            sudo update-binfmts --display qemu-arm
-            # TODO
-            # Replace with `docker run --privileged linuxkit/binfmt:v0.6`
-            # Once circle has a kernel 4.8+
+          command: docker run --privileged linuxkit/binfmt:v0.6
       - run:
           name: Test client
           command: make -C client build test
