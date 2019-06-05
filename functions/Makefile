@@ -1,5 +1,11 @@
+REGISTRY := johanneswuerbach
+IMAGE := $(REGISTRY)/diy-smart-home-functions
+
 build:
-	docker build -t johanneswuerbach/diy-smart-home-functions .
+	docker build -t $(IMAGE) .
 
 test: build
-	docker run --rm -it johanneswuerbach/diy-smart-home-functions npm test
+	docker run --rm -it $(IMAGE) npm test
+
+test-i:
+	docker run --rm -it -v /app/node_modules -v $(PWD):/app $(IMAGE) bash

@@ -12,7 +12,7 @@ push: build
 	docker push $(IMAGE):$(VERSION)
 
 test-i:  build-dev
-	docker run -it --rm -v $(PWD):/app "$(IMAGE)-dev" bash
+	docker run -it --rm -v /app/node_modules -v $(PWD):/app "$(IMAGE)-dev" bash
 
 test: build-dev
 	docker run -it --rm "$(IMAGE)-dev" npm test

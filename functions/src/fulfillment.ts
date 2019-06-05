@@ -90,7 +90,7 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
             errorCode: 'deviceNotFound'
           })
         }
-        
+
         for (const execution of command.execution) {
           if (execution.command === 'action.devices.commands.OnOff') {
             await deviceRef.update({
