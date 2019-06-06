@@ -36,6 +36,16 @@ const determineUser = async (headers: Headers) => {
   return (<firestore.DocumentData> doc.data()).uid
 }
 
+
+const CONSIDER_OFFLINE_AFTER = 90000
+const isOnline = (data: firestore.DocumentData | undefined): boolean => {
+  if (!data) {
+    return false
+  }
+
+  return Date.now() - (data.lastSeen || 0) < CONSIDER_OFFLINE_AFTER
+}
+
 interface Handler<TRequest extends SmartHomeV1Request, TResponse extends SmartHomeV1Response> {
   (body: TRequest, headers: Headers, uid: string): TResponse | Promise<TResponse>
 }
@@ -82,7 +92,8 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
       for (const targetDevice of command.devices) {
         const deviceRef = db.collection('devices').doc(targetDevice.id)
         const doc = await deviceRef.get()
-        if (!doc.exists || (<firestore.DocumentData> doc.data()).uid !== uid) {
+        const data = doc.data()
+        if (!doc.exists || !data || data.uid !== uid) {
           commands.push({
             ids: [targetDevice.id],
             status: 'ERROR',
@@ -100,7 +111,7 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
               'ids': [targetDevice.id],
               'status': 'SUCCESS',
               'states': {
-                'online': true,
+                'online': isOnline(data),
                 'on': execution.params.on
               }
             })
@@ -113,7 +124,7 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
               'ids': [targetDevice.id],
               'status': 'SUCCESS',
               'states': {
-                'online': true,
+                'online': isOnline(data),
                 'color': execution.params.color
               }
             })
@@ -126,7 +137,7 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
               'ids': [targetDevice.id],
               'status': 'SUCCESS',
               'states': {
-                'online': true,
+                'online': isOnline(data),
                 'brightness': execution.params.brightness
               }
             })
@@ -145,19 +156,19 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
 }))
 
 app.onQuery(determineUserMiddleware(async (body, headers, uid) => {
+  const devices: { [key:string]:any; } = {}
+
   if (!uid) {
     return {
       requestId: body.requestId,
       payload: {
         errorCode: 'authFailure',
-        devices: {}
+        devices
       },
     }
   }
 
   console.log(headers, inspect(body, { depth: Infinity }))
-
-  const devices: { [key:string]:any; } = {}
 
   for (const input of body.inputs) {
     const payload = input.payload
@@ -172,7 +183,7 @@ app.onQuery(determineUserMiddleware(async (body, headers, uid) => {
         return
       }
 
-      devicesForInput[device.id] = Object.assign({ online: true }, data.states)
+      devicesForInput[device.id] = Object.assign({ online: isOnline(data) }, data.states)
       return
     }))
 
