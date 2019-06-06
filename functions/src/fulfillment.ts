@@ -80,7 +80,6 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
   for (const input of body.inputs) {
     for (const command of input.payload.commands) {
       for (const targetDevice of command.devices) {
-        // TODO: Optimize to make only a single query
         const deviceRef = db.collection('devices').doc(targetDevice.id)
         const doc = await deviceRef.get()
         if (!doc.exists || (<firestore.DocumentData> doc.data()).uid !== uid) {
@@ -101,8 +100,8 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
               'ids': [targetDevice.id],
               'status': 'SUCCESS',
               'states': {
-                'on': execution.params.on,
-                'online': true
+                'online': true,
+                'on': execution.params.on
               }
             })
           } else if (execution.command === 'action.devices.commands.ColorAbsolute') {
@@ -114,6 +113,7 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
               'ids': [targetDevice.id],
               'status': 'SUCCESS',
               'states': {
+                'online': true,
                 'color': execution.params.color
               }
             })
@@ -126,6 +126,7 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
               'ids': [targetDevice.id],
               'status': 'SUCCESS',
               'states': {
+                'online': true,
                 'brightness': execution.params.brightness
               }
             })
@@ -143,7 +144,7 @@ app.onExecute(determineUserMiddleware(async (body, headers, uid) => {
   }
 }))
 
-app.onQuery(determineUserMiddleware((body, headers, uid) => {
+app.onQuery(determineUserMiddleware(async (body, headers, uid) => {
   if (!uid) {
     return {
       requestId: body.requestId,
@@ -156,10 +157,32 @@ app.onQuery(determineUserMiddleware((body, headers, uid) => {
 
   console.log(headers, inspect(body, { depth: Infinity }))
 
+  const devices: { [key:string]:any; } = {}
+
+  for (const input of body.inputs) {
+    const payload = input.payload
+    const devicesForInput: { [key:string]:any; } = {}
+
+    await Promise.all(payload.devices.map(async (device) => {
+      const doc = await db.collection('devices').doc(device.id).get()
+      const data = doc.data()
+
+      if (!data) {
+        devicesForInput[device.id] = { online: false }
+        return
+      }
+
+      devicesForInput[device.id] = Object.assign({ online: true }, data.states)
+      return
+    }))
+
+    Object.assign(devices, devicesForInput)
+  }
+
   return {
     requestId: body.requestId,
     payload: {
-      devices: {}
+      devices
     },
   }
 }))
@@ -170,9 +193,7 @@ app.onSync(determineUserMiddleware(async (body, headers, uid) => {
       requestId: body.requestId,
       payload: {
         errorCode: 'authFailure',
-        devices: [],
-        // TODO: This should be undefined, but fails typescript checks
-        agentUserId: 'invalid'
+        devices: []
       },
     }
   }
