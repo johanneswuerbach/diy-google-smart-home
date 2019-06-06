@@ -20,7 +20,9 @@ const clientSecret = process.env.CLIENT_SECRET
 
 const RED_PIN   = 17
 const GREEN_PIN = 22
-const BLUE_PIN  = 24 
+const BLUE_PIN  = 24
+
+const HEARTBEAT_INTERVAL = 30000
 
 const delay = (time: number) => {
   return new Promise(resolve => {
@@ -28,6 +30,18 @@ const delay = (time: number) => {
       resolve()
     }, time)
   })
+}
+
+const scheduleHeartbeat = (ms: number): void => {
+  setTimeout(async () => {
+    try {
+      await db.collection('devices').doc('diy-rpi-light').update({ lastSeen: Date.now() })
+    } catch (e) {
+      console.error('heartbeat error', e)
+    } finally {
+      scheduleHeartbeat(ms)
+    }
+  }, ms)
 }
 
 const init = async () => {
@@ -59,7 +73,7 @@ const init = async () => {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: `client_id=${clientId}&scope=email%20profile`
-    }) 
+    })
 
     if (!response.ok) {
       const body = await response.text()
@@ -96,7 +110,7 @@ const init = async () => {
       }
 
       token.expires_at = Date.now() + token.expires_in
-      
+
       auth = token
 
       await fs.writeFile(CONFIG_FILE, JSON.stringify(auth), { encoding: 'utf8' })
@@ -131,15 +145,18 @@ const init = async () => {
       nicknames: []
     },
     willReportState: false,
-    uid: currentUser.uid
+    uid: currentUser.uid,
+    lastSeen: Date.now()
   }, { merge: true })
+
+  scheduleHeartbeat(HEARTBEAT_INTERVAL)
 
   const unsubscribe = db.collection('devices').doc('diy-rpi-light').onSnapshot(function(doc) {
     // Ignore changes made at the device
     if (doc.metadata.hasPendingWrites) {
       return
     }
-   
+
     const data = doc.data()
     if (!data) {
       return
@@ -149,7 +166,7 @@ const init = async () => {
       let red = 255
       let green = 255
       let blue = 255
-      
+
       if (data.states.color) {
         let hex = Number(data.states.color.spectrumRGB).toString(16)
 
@@ -162,8 +179,8 @@ const init = async () => {
         // Split into pairs of two
         const values = hex.match(/(..?)/g)
         if (values) {
-          red = parseInt(values[0], 16) 
-          green = parseInt(values[1], 16) 
+          red = parseInt(values[0], 16)
+          green = parseInt(values[1], 16)
           blue = parseInt(values[2], 16)
         }
       }
@@ -176,10 +193,10 @@ const init = async () => {
       }
 
       console.log(`Setting light to: R: ${red}, G: ${green}, B: ${blue}`)
-      
+
       redPin.pwmWrite(red)
       greenPin.pwmWrite(green)
-      bluePin.pwmWrite(blue)  
+      bluePin.pwmWrite(blue)
     } else {
       console.log('Turning light off')
 
