@@ -9,7 +9,7 @@
   "main": "lib/index.js",
   "dependencies": {
     "firebase": "^6.1.0",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "pigpio": "^1.2.2"
   },
   "devDependencies": {
